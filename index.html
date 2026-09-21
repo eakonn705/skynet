@@ -7,17 +7,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Shippori+Mincho:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
 <style>
   :root{
     --bg:#0d0c0a;
-    --panel:#17140f;
+    --panel:rgba(23,20,15,0.72);
+    --panel-solid:#17140f;
     --panel-2:#1e1a13;
     --gold:#b8934a;
     --gold-bright:#e3c583;
     --white:#ede7d8;
     --muted:#8a8378;
     --border:rgba(184,147,74,0.32);
-    --danger:#8a3b3b;
   }
 
   *{box-sizing:border-box;}
@@ -26,128 +28,88 @@
   body{
     margin:0;
     min-height:100vh;
-    background-color:var(--bg);
-    background-image:
-      linear-gradient(180deg, rgba(13,12,10,0.86) 0%, rgba(13,12,10,0.93) 60%, rgba(13,12,10,0.97) 100%),
-      url('background.png');
-    background-size:cover;
-    background-position:center;
-    background-attachment:fixed;
+    background:var(--bg) url('background.png') center / cover fixed no-repeat;
     color:var(--white);
     font-family:'Zen Kaku Gothic New', sans-serif;
     position:relative;
-    padding-bottom:120px;
+    overflow-x:hidden;
   }
 
-  /* 走査線オーバーレイ(端末/ネットワークの雰囲気) */
+  /* 背景画像の上に薄く暗さを重ねるだけ(画像は透けて見える) */
   body::before{
     content:"";
     position:fixed;
     inset:0;
     pointer-events:none;
-    background:repeating-linear-gradient(
-      0deg,
-      rgba(255,255,255,0.015) 0px,
-      rgba(255,255,255,0.015) 1px,
-      transparent 1px,
-      transparent 3px
-    );
+    background:linear-gradient(180deg, rgba(13,12,10,0.55), rgba(13,12,10,0.72));
+    z-index:0;
+  }
+  /* 走査線オーバーレイ */
+  body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
     z-index:1;
   }
 
+  #app{ position:relative; z-index:2; display:flex; flex-direction:column; min-height:100vh; }
+
   header{
-    position:relative;
-    z-index:2;
     display:flex;
     align-items:center;
     gap:16px;
-    padding:28px clamp(16px,4vw,48px) 20px;
+    padding:20px clamp(16px,3vw,32px);
     border-bottom:1px solid var(--border);
+    background:var(--panel);
   }
-
-  .brand{
-    display:flex;
-    align-items:baseline;
-    gap:10px;
-  }
-
+  .brand{ display:flex; align-items:baseline; gap:10px; }
   h1{
     margin:0;
     font-family:'Orbitron', sans-serif;
     font-weight:800;
-    font-size:clamp(20px,2.6vw,28px);
+    font-size:clamp(20px,2.4vw,26px);
     letter-spacing:0.04em;
     color:var(--gold-bright);
     text-shadow:0 0 18px rgba(227,197,131,0.25);
   }
-
   .status-dot{
     width:7px;height:7px;border-radius:50%;
     background:var(--gold-bright);
     box-shadow:0 0 8px var(--gold-bright);
     animation:pulse 2.4s ease-in-out infinite;
   }
-  @keyframes pulse{
-    0%,100%{opacity:1;}
-    50%{opacity:0.35;}
-  }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
 
-  .summary-btn{
+  /* ヘッダー内の要約ボタン(スマホ用) */
+  #summary-btn-mobile{
     margin-left:auto;
     font-family:'JetBrains Mono', monospace;
-    font-size:13px;
-    letter-spacing:0.03em;
+    font-size:12px;
     color:var(--gold-bright);
     background:transparent;
     border:1px solid var(--border);
-    padding:9px 16px;
+    padding:8px 14px;
     cursor:pointer;
-    transition:background 0.15s, border-color 0.15s;
   }
-  .summary-btn:hover{
-    background:rgba(184,147,74,0.1);
-    border-color:var(--gold);
-  }
-  .summary-btn:disabled{opacity:0.5; cursor:default;}
+  #summary-btn-mobile:hover{ background:rgba(184,147,74,0.1); border-color:var(--gold); }
 
-  main{
-    position:relative;
-    z-index:2;
-    max-width:720px;
-    margin:0 auto;
-    padding:28px clamp(16px,4vw,48px) 40px;
-  }
+  /* ===== レイアウト本体 ===== */
+  #layout{ flex:1; display:flex; width:100%; min-height:0; }
 
-  #ai-panel{
-    display:none;
-    margin-bottom:28px;
-    padding:18px 20px;
-    background:var(--panel-2);
-    border:1px solid var(--gold);
-    border-left:3px solid var(--gold-bright);
-  }
-  #ai-panel.show{display:block;}
-  #ai-panel .ai-label{
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    color:var(--gold-bright);
-    letter-spacing:0.08em;
+  /* ---- 掲示板(共通) ---- */
+  #board-col{
+    flex:1;
+    min-width:0;
     display:flex;
-    justify-content:space-between;
-    margin-bottom:10px;
+    flex-direction:column;
   }
-  #ai-panel .ai-label button{
-    background:none;border:none;color:var(--muted);
-    cursor:pointer;font-family:inherit;font-size:11px;
+  #board-scroll{
+    flex:1;
+    overflow-y:auto;
+    padding:24px clamp(16px,3vw,32px) 16px;
   }
-  #ai-panel .ai-body{
-    font-family:'JetBrains Mono', monospace;
-    font-size:14px;
-    line-height:1.7;
-    color:var(--white);
-    white-space:pre-wrap;
-  }
-
   .posts-heading{
     font-family:'JetBrains Mono', monospace;
     font-size:12px;
@@ -155,158 +117,227 @@
     letter-spacing:0.08em;
     margin:0 0 14px;
   }
-
-  #posts{
-    display:flex;
-    flex-direction:column;
-  }
-
-  .post{
-    padding:16px 4px;
-    border-top:1px solid var(--border);
-    transition:padding-left 0.15s, border-color 0.15s;
-  }
-  .post:hover{
-    padding-left:12px;
-    border-color:var(--gold);
-  }
-  .post:last-child{border-bottom:1px solid var(--border);}
-
-  .post-time{
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    color:var(--muted);
-    letter-spacing:0.03em;
-  }
-
+  #posts{ display:flex; flex-direction:column; max-width:720px; }
+  .post{ padding:16px 4px; border-top:1px solid var(--border); transition:padding-left .15s, border-color .15s; }
+  .post:hover{ padding-left:12px; border-color:var(--gold); }
+  .post:last-child{ border-bottom:1px solid var(--border); }
+  .post-time{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); }
   .post-content{
-    margin-top:6px;
-    font-family:'Shippori Mincho', serif;
-    font-size:16px;
-    line-height:1.85;
-    color:var(--white);
-    word-break:break-word;
-    white-space:pre-wrap;
+    margin-top:6px; font-family:'Shippori Mincho', serif; font-size:16px; line-height:1.85;
+    color:var(--white); word-break:break-word; white-space:pre-wrap;
   }
+  .empty{ font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--muted); padding:24px 4px; }
 
-  .empty{
-    font-family:'JetBrains Mono', monospace;
-    font-size:13px;
-    color:var(--muted);
-    padding:24px 4px;
-  }
-
-  footer{
-    position:fixed;
-    left:0; right:0; bottom:0;
-    z-index:3;
-    background:rgba(13,12,10,0.94);
+  /* 掲示板側の投稿バー(PCではここが唯一の投稿手段) */
+  #board-composer{
     border-top:1px solid var(--border);
-    backdrop-filter:blur(4px);
-    padding:14px clamp(16px,4vw,48px);
-  }
-
-  .composer{
-    max-width:720px;
-    margin:0 auto;
+    background:var(--panel);
+    padding:12px clamp(16px,3vw,32px);
     display:flex;
     gap:10px;
-    align-items:flex-end;
   }
+  #board-input{
+    flex:1; resize:none; height:44px; max-height:110px;
+    background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
+    font-family:'Zen Kaku Gothic New', sans-serif; font-size:14px; padding:11px 12px; outline:none;
+  }
+  #board-input:focus{ border-color:var(--gold); }
+  #board-post-btn{
+    font-family:'Zen Kaku Gothic New', sans-serif; font-weight:700; font-size:13px;
+    padding:0 18px; border:1px solid var(--border); background:transparent; color:var(--white); cursor:pointer;
+  }
+  #board-post-btn:hover{ border-color:var(--gold-bright); color:var(--gold-bright); }
+  #board-post-btn:disabled{ opacity:.45; cursor:default; }
 
-  #type-input{
-    flex:1;
-    resize:none;
-    height:44px;
-    max-height:120px;
+  /* ---- PC専用: 右側AIアシスタント常駐カラム ---- */
+  #ai-col{
+    width:34%;
+    max-width:420px;
+    min-width:280px;
+    border-left:1px solid var(--border);
     background:var(--panel);
-    border:1px solid var(--border);
-    color:var(--white);
-    font-family:'Zen Kaku Gothic New', sans-serif;
-    font-size:14px;
-    padding:11px 12px;
-    outline:none;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
   }
-  #type-input:focus{border-color:var(--gold);}
-
-  .composer button{
-    font-family:'Zen Kaku Gothic New', sans-serif;
-    font-weight:700;
-    font-size:13px;
-    padding:12px 16px;
-    border:1px solid var(--border);
-    background:transparent;
-    color:var(--white);
-    cursor:pointer;
-    white-space:nowrap;
-    transition:background 0.15s, border-color 0.15s, color 0.15s;
+  #summary-btn-wrap{ padding:18px 16px 10px; text-align:center; }
+  #summary-btn-desktop{
+    font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--gold-bright);
+    background:transparent; border:1px solid var(--gold); padding:10px 18px; cursor:pointer;
+    letter-spacing:.03em;
   }
-  #post-btn{color:var(--white);}
-  #post-btn:hover{border-color:var(--gold-bright); color:var(--gold-bright);}
-  #ask-btn{color:var(--gold-bright); border-color:var(--gold);}
-  #ask-btn:hover{background:rgba(184,147,74,0.12);}
-  .composer button:disabled{opacity:0.45; cursor:default;}
+  #summary-btn-desktop:hover{ background:rgba(184,147,74,0.12); }
+  #summary-btn-desktop.hidden{ display:none; }
 
-  .hint{
-    max-width:720px;
-    margin:6px auto 0;
-    font-family:'JetBrains Mono', monospace;
-    font-size:10px;
-    color:var(--muted);
+  .ai-name{
+    text-align:center; font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--muted); letter-spacing:.1em; padding:0 16px 10px; border-bottom:1px solid var(--border);
+  }
+
+  #chat-log{ flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
+  .msg{ max-width:100%; }
+  .msg .who{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.06em; margin-bottom:4px;
+  }
+  .msg.user .who{ color:var(--muted); text-align:right; }
+  .msg.ai .who{ color:var(--gold-bright); }
+  .msg.user .bubble{
+    background:var(--panel-solid); border:1px solid var(--border); padding:10px 12px;
+    font-size:13.5px; color:var(--white); margin-left:auto; max-width:90%; white-space:pre-wrap;
+  }
+  .msg.ai .bubble{
+    border-left:2px solid var(--gold); padding:4px 0 4px 12px; font-size:13.5px; line-height:1.75; color:var(--white);
+  }
+  .msg.ai .bubble.loading{ color:var(--muted); font-family:'JetBrains Mono', monospace; }
+  .msg.ai .bubble p{ margin:0 0 8px; }
+  .msg.ai .bubble p:last-child{ margin-bottom:0; }
+  .msg.ai .bubble code{ font-family:'JetBrains Mono', monospace; background:rgba(184,147,74,0.12); padding:1px 4px; }
+  .msg.ai .bubble pre{ background:rgba(0,0,0,0.35); padding:10px; overflow-x:auto; }
+  .msg.ai .bubble ul, .msg.ai .bubble ol{ padding-left:1.2em; }
+
+  #chat-input-wrap{ border-top:1px solid var(--border); padding:12px 14px; display:flex; gap:8px; }
+  #chat-input{
+    flex:1; resize:none; height:42px; max-height:100px;
+    background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
+    font-family:'Zen Kaku Gothic New', sans-serif; font-size:13.5px; padding:10px; outline:none;
+  }
+  #chat-input:focus{ border-color:var(--gold); }
+  #chat-send{
+    font-family:'Zen Kaku Gothic New', sans-serif; font-weight:700; font-size:13px;
+    padding:0 14px; border:1px solid var(--gold); color:var(--gold-bright); background:transparent; cursor:pointer;
+  }
+  #chat-send:hover{ background:rgba(184,147,74,0.12); }
+  #chat-send:disabled{ opacity:.45; cursor:default; }
+
+  /* ---- スマホ専用: 下部固定バー ---- */
+  #mobile-bar{ display:none; }
+
+  /* ===== ブレークポイント切り替え ===== */
+  @media (max-width: 899px){
+    #ai-col{ display:none; }
+    #board-composer{ display:none; } /* スマホでは下部バーに統合 */
+    #board-scroll{ padding-bottom:150px; }
+
+    #mobile-bar{
+      display:block;
+      position:fixed; left:0; right:0; bottom:0; z-index:5;
+      background:rgba(13,12,10,0.95);
+      border-top:1px solid var(--border);
+      backdrop-filter:blur(4px);
+    }
+    #mobile-ai-panel{
+      display:none;
+      max-height:45vh;
+      overflow-y:auto;
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+    }
+    #mobile-ai-panel.show{ display:flex; flex-direction:column; gap:14px; }
+    #mobile-composer{ display:flex; gap:8px; align-items:flex-end; padding:12px clamp(16px,4vw,32px); }
+    #mobile-input{
+      flex:1; resize:none; height:44px; max-height:110px;
+      background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
+      font-family:'Zen Kaku Gothic New', sans-serif; font-size:14px; padding:11px 12px; outline:none;
+    }
+    #mobile-input:focus{ border-color:var(--gold); }
+    #mobile-composer button{
+      font-family:'Zen Kaku Gothic New', sans-serif; font-weight:700; font-size:12.5px;
+      padding:0 12px; height:44px; border:1px solid var(--border); background:transparent; color:var(--white); cursor:pointer; white-space:nowrap;
+    }
+    #mobile-post-btn:hover{ border-color:var(--gold-bright); color:var(--gold-bright); }
+    #mobile-ask-btn{ color:var(--gold-bright); border-color:var(--gold); }
+    #mobile-ask-btn:hover{ background:rgba(184,147,74,0.12); }
+    #mobile-composer button:disabled{ opacity:.45; cursor:default; }
+  }
+  @media (min-width: 900px){
+    #summary-btn-mobile{ display:none; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand">
-    <h1>Skynet Like</h1>
-    <span class="status-dot"></span>
-  </div>
-  <button class="summary-btn" id="summary-btn">今日の要約</button>
-</header>
-
-<main>
-  <div id="ai-panel">
-    <div class="ai-label">
-      <span id="ai-panel-title">AI応答</span>
-      <button id="ai-panel-close">閉じる ×</button>
+<div id="app">
+  <header>
+    <div class="brand">
+      <h1>Skynet Like</h1>
+      <span class="status-dot"></span>
     </div>
-    <div class="ai-body" id="ai-panel-body">生成中...</div>
+    <button id="summary-btn-mobile">今日の要約</button>
+  </header>
+
+  <div id="layout">
+    <div id="board-col">
+      <div id="board-scroll">
+        <p class="posts-heading">TODAY'S POSTS</p>
+        <div id="posts"><p class="empty">読み込み中...</p></div>
+      </div>
+      <div id="board-composer">
+        <textarea id="board-input" placeholder="投稿する..." maxlength="500"></textarea>
+        <button id="board-post-btn">投稿する</button>
+      </div>
+    </div>
+
+    <aside id="ai-col">
+      <div id="summary-btn-wrap">
+        <button id="summary-btn-desktop">今日の要約</button>
+      </div>
+      <div class="ai-name">AI ASSISTANT — Sky</div>
+      <div id="chat-log"></div>
+      <div id="chat-input-wrap">
+        <textarea id="chat-input" placeholder="Skyに質問する..." maxlength="500"></textarea>
+        <button id="chat-send">送信</button>
+      </div>
+    </aside>
   </div>
 
-  <p class="posts-heading">TODAY'S POSTS</p>
-  <div id="posts">
-    <p class="empty">読み込み中...</p>
+  <div id="mobile-bar">
+    <div id="mobile-ai-panel"></div>
+    <div id="mobile-composer">
+      <textarea id="mobile-input" placeholder="投稿する、またはSkyに質問する..." maxlength="500"></textarea>
+      <button id="mobile-post-btn">投稿</button>
+      <button id="mobile-ask-btn">Skyに質問</button>
+    </div>
   </div>
-</main>
-
-<footer>
-  <div class="composer">
-    <textarea id="type-input" placeholder="投稿する、またはAIに質問する..." maxlength="500"></textarea>
-    <button id="post-btn">投稿する</button>
-    <button id="ask-btn">AIに質問</button>
-  </div>
-  <p class="hint">匿名投稿・文章のみ対応</p>
-</footer>
+</div>
 
 <script>
 /* ▼▼▼ ここにデプロイしたCloudflare WorkerのURLを設定してください ▼▼▼ */
-const WORKER_URL = "https://proud-dew-b8a0.18-kota-shobun.workers.dev";
+const WORKER_URL_RAW = "https://proud-dew-b8a0.18-kota-shobun.workers.dev/";
+const WORKER_URL = WORKER_URL_RAW.replace(/\/+$/, '');
 /* ▲▲▲ ここまで ▲▲▲ ---------------------------------------------- */
 
 const postsEl = document.getElementById('posts');
-const input = document.getElementById('type-input');
-const postBtn = document.getElementById('post-btn');
-const askBtn = document.getElementById('ask-btn');
-const summaryBtn = document.getElementById('summary-btn');
-const aiPanel = document.getElementById('ai-panel');
-const aiPanelTitle = document.getElementById('ai-panel-title');
-const aiPanelBody = document.getElementById('ai-panel-body');
-document.getElementById('ai-panel-close').onclick = () => aiPanel.classList.remove('show');
 
+const boardInput = document.getElementById('board-input');
+const boardPostBtn = document.getElementById('board-post-btn');
+
+const mobileInput = document.getElementById('mobile-input');
+const mobilePostBtn = document.getElementById('mobile-post-btn');
+const mobileAskBtn = document.getElementById('mobile-ask-btn');
+const mobileAiPanel = document.getElementById('mobile-ai-panel');
+
+const summaryBtnDesktop = document.getElementById('summary-btn-desktop');
+const summaryBtnMobile = document.getElementById('summary-btn-mobile');
+const chatLog = document.getElementById('chat-log');
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+
+let conversationStarted = false;
+
+// ---- Markdown描画(AIの回答のみに適用) ----
+function renderMarkdown(text){
+  try{
+    const html = marked.parse(text || '');
+    return DOMPurify.sanitize(html);
+  }catch(e){
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+}
+
+// ---- 投稿一覧 ----
 function fmtTime(iso){
-  // "YYYY-MM-DD HH:MM:SS" 形式(JST済み)から HH:MM のみ表示
   const m = iso.match(/(\d{2}):(\d{2})/);
   return m ? `${m[1]}:${m[2]}` : iso;
 }
@@ -325,7 +356,6 @@ async function loadPosts(){
         <div class="post-content"></div>
       </div>
     `).join('');
-    // XSS対策: textContentで挿入
     const bodies = postsEl.querySelectorAll('.post-content');
     data.posts.forEach((p, i) => { bodies[i].textContent = p.content; });
   }catch(e){
@@ -333,68 +363,124 @@ async function loadPosts(){
   }
 }
 
-function showAiPanel(title, text){
-  aiPanelTitle.textContent = title;
-  aiPanelBody.textContent = text;
-  aiPanel.classList.add('show');
+async function submitPost(text, {clearInputs} = {}){
+  if(!text) return;
+  try{
+    const res = await fetch(`${WORKER_URL}/api/posts`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({content:text})
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    if(clearInputs) clearInputs();
+    await loadPosts();
+  }catch(e){
+    alert('投稿に失敗しました。WORKER_URLの設定を確認してください。');
+  }
 }
 
-async function runAi(mode, question){
-  const busyButtons = [summaryBtn, askBtn, postBtn];
-  busyButtons.forEach(b => b.disabled = true);
-  showAiPanel(mode === 'summary' ? '今日の要約' : 'AIの回答', '生成中...');
+boardPostBtn.onclick = () => {
+  const text = boardInput.value.trim();
+  boardPostBtn.disabled = true;
+  submitPost(text, {clearInputs: () => { boardInput.value=''; }}).finally(() => boardPostBtn.disabled=false);
+};
+boardInput.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); boardPostBtn.click(); }
+});
+
+mobilePostBtn.onclick = () => {
+  const text = mobileInput.value.trim();
+  mobilePostBtn.disabled = true;
+  submitPost(text, {clearInputs: () => { mobileInput.value=''; }}).finally(() => mobilePostBtn.disabled=false);
+};
+
+// ---- AIチャット(PC: 右カラム / スマホ: 下部パネル、両方に同じ内容を描画) ----
+function appendMessage(role, content, {loading=false} = {}){
+  conversationStarted = true;
+  summaryBtnDesktop.classList.add('hidden');
+
+  const who = role === 'user' ? 'YOU' : 'SKY';
+  const bubbleHtml = role === 'ai'
+    ? renderMarkdown(content)
+    : `<div class="bubble">${escapeText(content)}</div>`;
+
+  const wrapDesktop = document.createElement('div');
+  wrapDesktop.className = `msg ${role}`;
+  wrapDesktop.innerHTML = role === 'ai'
+    ? `<div class="who">${who}</div><div class="bubble${loading ? ' loading' : ''}">${bubbleHtml}</div>`
+    : `<div class="who">${who}</div>${bubbleHtml}`;
+  chatLog.appendChild(wrapDesktop);
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  mobileAiPanel.classList.add('show');
+  const wrapMobile = wrapDesktop.cloneNode(true);
+  mobileAiPanel.appendChild(wrapMobile);
+  mobileAiPanel.scrollTop = mobileAiPanel.scrollHeight;
+
+  return { desktop: wrapDesktop, mobile: wrapMobile };
+}
+
+function updateMessage(nodes, role, content){
+  const bubbleHtml = role === 'ai' ? renderMarkdown(content) : escapeText(content);
+  [nodes.desktop, nodes.mobile].forEach(node => {
+    const bubble = node.querySelector('.bubble');
+    bubble.classList.remove('loading');
+    bubble.innerHTML = bubbleHtml;
+  });
+}
+
+function escapeText(text){
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
+
+async function askAI(mode, question){
+  if(mode === 'ask'){
+    appendMessage('user', question);
+  }
+  const nodes = appendMessage('ai', mode === 'summary' ? '要約を生成中...' : '考え中...', {loading:true});
+
   try{
     const res = await fetch(`${WORKER_URL}/api/ai`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify(mode === 'summary' ? {mode} : {mode, question})
     });
     const data = await res.json();
     if(data.error) throw new Error(data.error);
-    showAiPanel(mode === 'summary' ? '今日の要約' : 'AIの回答', data.text);
+    updateMessage(nodes, 'ai', data.text);
   }catch(e){
-    showAiPanel('エラー', 'AI応答の取得に失敗しました。WORKER_URL・APIキーの設定を確認してください。');
-  }finally{
-    busyButtons.forEach(b => b.disabled = false);
+    updateMessage(nodes, 'ai', '⚠ AI応答の取得に失敗しました。WORKER_URL・APIキーの設定を確認してください。');
   }
 }
 
-summaryBtn.onclick = () => runAi('summary');
+function triggerSummary(){
+  askAI('summary');
+}
+summaryBtnDesktop.onclick = triggerSummary;
+summaryBtnMobile.onclick = () => {
+  mobileAiPanel.classList.add('show');
+  triggerSummary();
+};
 
-askBtn.onclick = () => {
-  const q = input.value.trim();
+chatSend.onclick = () => {
+  const q = chatInput.value.trim();
   if(!q) return;
-  runAi('ask', q);
-  input.value = '';
+  chatInput.value = '';
+  askAI('ask', q);
 };
-
-postBtn.onclick = async () => {
-  const text = input.value.trim();
-  if(!text) return;
-  postBtn.disabled = true;
-  try{
-    const res = await fetch(`${WORKER_URL}/api/posts`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({content: text})
-    });
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
-    input.value = '';
-    await loadPosts();
-  }catch(e){
-    alert('投稿に失敗しました。WORKER_URLの設定を確認してください。');
-  }finally{
-    postBtn.disabled = false;
-  }
-};
-
-input.addEventListener('keydown', (e) => {
-  if(e.key === 'Enter' && !e.shiftKey){
-    e.preventDefault();
-    postBtn.click();
-  }
+chatInput.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); chatSend.click(); }
 });
+
+mobileAskBtn.onclick = () => {
+  const q = mobileInput.value.trim();
+  if(!q) return;
+  mobileInput.value = '';
+  askAI('ask', q);
+};
 
 loadPosts();
 </script>
