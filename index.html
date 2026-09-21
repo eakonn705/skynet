@@ -262,7 +262,7 @@
       <h1>Skynet Like</h1>
       <span class="status-dot"></span>
     </div>
-    <button id="summary-btn-mobile">今日の要約</button>
+    <button id="summary-btn-mobile">最近の要約</button>
   </header>
 
   <div id="layout">
@@ -279,7 +279,7 @@
 
     <aside id="ai-col">
       <div id="summary-btn-wrap">
-        <button id="summary-btn-desktop">今日の要約</button>
+        <button id="summary-btn-desktop">最近の要約</button>
       </div>
       <div class="ai-name">AI ASSISTANT — Sky</div>
       <div id="chat-log"></div>
@@ -302,7 +302,7 @@
 
 <script>
 /* ▼▼▼ ここにデプロイしたCloudflare WorkerのURLを設定してください ▼▼▼ */
-const WORKER_URL_RAW = "https://proud-dew-b8a0.18-kota-shobun.workers.dev/";
+const WORKER_URL_RAW = "https://YOUR-WORKER-SUBDOMAIN.workers.dev";
 const WORKER_URL = WORKER_URL_RAW.replace(/\/+$/, '');
 /* ▲▲▲ ここまで ▲▲▲ ---------------------------------------------- */
 
