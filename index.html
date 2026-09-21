@@ -56,6 +56,19 @@
 
   #app{ position:relative; z-index:2; display:flex; flex-direction:column; min-height:100vh; }
 
+  #browser-banner{
+    position:relative;
+    z-index:3;
+    text-align:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.06em;
+    color:var(--gold-bright);
+    background:rgba(184,147,74,0.1);
+    border-bottom:1px solid var(--border);
+    padding:6px 8px;
+  }
+
   header{
     display:flex;
     align-items:center;
@@ -255,6 +268,37 @@
 </style>
 </head>
 <body>
+
+<script>
+// ページ内の他の何よりも先に、ブラウザ判定を行って表示する
+(function () {
+  const ua = navigator.userAgent.toLowerCase();
+  let browserName = "不明なブラウザ";
+
+  // DuckDuckGoはChromium系エンジンを使っており、User-AgentにChrome/Safariの
+  // 識別子も混在するため、他の判定より先にチェックする
+  if (ua.indexOf("duckduckgo") !== -1) {
+    browserName = "DuckDuckGo";
+  } else if (ua.indexOf("edg") !== -1) {
+    browserName = "Edge";
+  } else if (ua.indexOf("msie") !== -1 || ua.indexOf("trident") !== -1) {
+    browserName = "Internet Explorer";
+  } else if (ua.indexOf("firefox") !== -1) {
+    browserName = "Firefox";
+  } else if (ua.indexOf("chrome") !== -1) {
+    browserName = "Chrome";
+  } else if (ua.indexOf("safari") !== -1) {
+    browserName = "Safari";
+  }
+
+  console.log(`あなたのブラウザは${browserName}です`);
+
+  const banner = document.createElement("div");
+  banner.id = "browser-banner";
+  banner.textContent = `あなたのブラウザは${browserName}です`;
+  document.body.prepend(banner);
+})();
+</script>
 
 <div id="app">
   <header>
