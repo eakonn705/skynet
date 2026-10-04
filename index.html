@@ -173,6 +173,9 @@
   }
   .post:hover{ padding-left:12px; border-color:var(--gold); }
   .post:last-child{ border-bottom:1px solid var(--border); }
+  .post-meta{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .post-name{ font-family:'Zen Kaku Gothic New', sans-serif; font-weight:700; font-size:13px; color:var(--gold-bright); }
+  .post-id{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); }
   .post-time{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); }
   .post-content{
     margin-top:6px; font-family:'Shippori Mincho', serif; font-size:16px; line-height:1.85;
@@ -184,6 +187,13 @@
     border-top:1px solid var(--border); background:var(--panel);
     padding:12px clamp(16px,3vw,32px); display:flex; flex-direction:column; gap:8px; flex-shrink:0;
   }
+  .name-row{ display:flex; }
+  .nickname-input{
+    width:160px; max-width:100%;
+    background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
+    font-family:'Zen Kaku Gothic New', sans-serif; font-size:12.5px; padding:7px 10px; outline:none;
+  }
+  .nickname-input:focus{ border-color:var(--gold); }
   .composer-row{ display:flex; gap:10px; }
   .icon-btn{
     width:44px; height:44px; flex-shrink:0;
@@ -373,6 +383,9 @@
         <div id="posts"><p class="empty">読み込み中...</p></div>
       </div>
       <div id="board-composer">
+        <div class="name-row">
+          <input type="text" id="board-nickname" class="nickname-input" placeholder="名無し" maxlength="20">
+        </div>
         <div class="img-preview" id="board-preview">
           <img id="board-preview-img" alt="preview">
           <button type="button" class="remove-img" id="board-preview-remove">画像を外す</button>
@@ -401,6 +414,9 @@
   <div id="mobile-bar">
     <div id="mobile-ai-panel"></div>
     <div id="mobile-composer">
+      <div class="name-row">
+        <input type="text" id="mobile-nickname" class="nickname-input" placeholder="名無し" maxlength="20" style="width:100%;">
+      </div>
       <div class="img-preview" id="mobile-preview">
         <img id="mobile-preview-img" alt="preview">
         <button type="button" class="remove-img" id="mobile-preview-remove">画像を外す</button>
@@ -430,6 +446,7 @@ const postsEl = document.getElementById('posts');
 const postsHeading = document.getElementById('posts-heading');
 
 const boardInput = document.getElementById('board-input');
+const boardNickname = document.getElementById('board-nickname');
 const boardPostBtn = document.getElementById('board-post-btn');
 const boardFileBtn = document.getElementById('board-file-btn');
 const boardCameraBtn = document.getElementById('board-camera-btn');
@@ -440,6 +457,7 @@ const boardPreviewImg = document.getElementById('board-preview-img');
 const boardPreviewRemove = document.getElementById('board-preview-remove');
 
 const mobileInput = document.getElementById('mobile-input');
+const mobileNickname = document.getElementById('mobile-nickname');
 const mobilePostBtn = document.getElementById('mobile-post-btn');
 const mobileAskBtn = document.getElementById('mobile-ask-btn');
 const mobileAiPanel = document.getElementById('mobile-ai-panel');
@@ -573,13 +591,21 @@ function renderPostsList(posts){
   }
   postsEl.innerHTML = posts.map(p => `
     <div class="post">
-      <div class="post-time">${fmtTime(p.created_at)}</div>
+      <div class="post-meta">
+        <span class="post-name"></span>
+        <span class="post-id">${p.ip_index != null ? 'ID:' + p.ip_index : ''}</span>
+        <span class="post-time">${fmtTime(p.created_at)}</span>
+      </div>
       <div class="post-content"></div>
       ${p.image ? `<img class="post-image" src="${p.image}" alt="投稿画像">` : ''}
     </div>
   `).join('');
+  const names = postsEl.querySelectorAll('.post-name');
   const bodies = postsEl.querySelectorAll('.post-content');
-  posts.forEach((p, i) => { bodies[i].textContent = p.content; });
+  posts.forEach((p, i) => {
+    names[i].textContent = p.nickname || '名無し';
+    bodies[i].textContent = p.content;
+  });
 }
 
 
@@ -601,14 +627,14 @@ async function loadPosts(){
   }
 }
 
-async function submitPost(text, image, {clearInputs} = {}){
+async function submitPost(text, image, nickname, {clearInputs} = {}){
   if(!text && !image) return;
   try{
     const headers = {'Content-Type':'application/json'};
     if(currentBoard === 'locked') headers['X-Access-Code'] = accessCode;
     const res = await fetch(`${WORKER_URL}/api/posts`, {
       method:'POST', headers,
-      body: JSON.stringify({content:text, board: currentBoard, image})
+      body: JSON.stringify({content:text, board: currentBoard, image, nickname})
     });
     const data = await res.json();
     if(data.error) throw new Error(data.error);
@@ -622,13 +648,15 @@ async function submitPost(text, image, {clearInputs} = {}){
 boardPostBtn.onclick = () => {
   const text = boardInput.value.trim();
   const image = boardPendingImage;
+  const nickname = boardNickname.value.trim();
   if(!text && !image) return;
   boardPostBtn.disabled = true;
-  submitPost(text, image, {clearInputs: () => {
+  submitPost(text, image, nickname, {clearInputs: () => {
     boardInput.value = '';
     boardPendingImage = null;
     boardPreview.classList.remove('show');
     boardPreviewImg.src = '';
+    // ニックネームは次回の投稿でも使えるよう、あえてクリアしない
   }}).finally(() => boardPostBtn.disabled=false);
 };
 boardInput.addEventListener('keydown', e => {
@@ -638,9 +666,10 @@ boardInput.addEventListener('keydown', e => {
 mobilePostBtn.onclick = () => {
   const text = mobileInput.value.trim();
   const image = mobilePendingImage;
+  const nickname = mobileNickname.value.trim();
   if(!text && !image) return;
   mobilePostBtn.disabled = true;
-  submitPost(text, image, {clearInputs: () => {
+  submitPost(text, image, nickname, {clearInputs: () => {
     mobileInput.value = '';
     mobilePendingImage = null;
     mobilePreview.classList.remove('show');
@@ -750,7 +779,7 @@ function renderAdminList(posts){
     <div class="admin-row ${p.board === 'locked' ? 'locked' : ''}" data-id="${p.id}">
       <span class="badge">${p.board === 'locked' ? '鍵板' : '通常'}</span>
       <div class="body">
-        <div class="time">#${p.id} ・ ${p.created_at}</div>
+        <div class="time">#${p.id} ・ ${p.nickname || '名無し'} ・ ID:${p.ip_index != null ? p.ip_index : '-'} ・ ${p.created_at}</div>
         <div class="text"></div>
         ${p.image ? `<img class="admin-thumb" src="${p.image}" alt="投稿画像">` : ''}
       </div>
