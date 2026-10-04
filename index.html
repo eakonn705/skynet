@@ -20,148 +20,157 @@
     --white:#ede7d8;
     --muted:#8a8378;
     --border:rgba(184,147,74,0.32);
+    --danger:#b85a4a;
   }
 
   *{box-sizing:border-box;}
   html,body{height:100%;}
+  html{ scroll-behavior:smooth; }
 
   body{
     margin:0;
-    min-height:100vh;
+    height:100%;
     background:var(--bg) url('background.png') center / cover fixed no-repeat;
     color:var(--white);
     font-family:'Zen Kaku Gothic New', sans-serif;
     position:relative;
-    overflow-x:hidden;
+    overflow:hidden; /* スクロールは各内部パネルが担当する */
   }
 
-  /* 背景画像の上に薄く暗さを重ねるだけ(画像は透けて見える) */
   body::before{
-    content:"";
-    position:fixed;
-    inset:0;
-    pointer-events:none;
+    content:""; position:fixed; inset:0; pointer-events:none;
     background:linear-gradient(180deg, rgba(13,12,10,0.55), rgba(13,12,10,0.72));
     z-index:0;
   }
-  /* 走査線オーバーレイ */
   body::after{
-    content:"";
-    position:fixed;
-    inset:0;
-    pointer-events:none;
+    content:""; position:fixed; inset:0; pointer-events:none;
     background:repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
     z-index:1;
   }
 
-  #app{ position:relative; z-index:2; display:flex; flex-direction:column; min-height:100vh; }
+  /* カスタムスクロールバー */
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:rgba(184,147,74,0.35); border-radius:4px; }
+  ::-webkit-scrollbar-thumb:hover{ background:rgba(184,147,74,0.6); }
+
+  button{ transition: background .15s ease, border-color .15s ease, color .15s ease, transform .08s ease; }
+  button:active{ transform:scale(0.96); }
+  textarea, input{ transition: border-color .15s ease; }
+
+  @keyframes fadeInUp{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:translateY(0);} }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+  @keyframes blink{ 0%,80%,100%{ opacity:.25; } 40%{ opacity:1; } }
+
+  #app{ position:relative; z-index:2; display:flex; flex-direction:column; height:100%; }
 
   header{
-    display:flex;
-    align-items:center;
-    gap:16px;
+    display:flex; align-items:center; gap:12px;
     padding:20px clamp(16px,3vw,32px);
     border-bottom:1px solid var(--border);
     background:var(--panel);
+    flex-shrink:0;
   }
   .brand{ display:flex; align-items:baseline; gap:10px; }
   h1{
-    margin:0;
-    font-family:'Orbitron', sans-serif;
-    font-weight:800;
-    font-size:clamp(20px,2.4vw,26px);
-    letter-spacing:0.04em;
-    color:var(--gold-bright);
+    margin:0; font-family:'Orbitron', sans-serif; font-weight:800;
+    font-size:clamp(20px,2.4vw,26px); letter-spacing:0.04em; color:var(--gold-bright);
     text-shadow:0 0 18px rgba(227,197,131,0.25);
   }
   .status-dot{
-    width:7px;height:7px;border-radius:50%;
-    background:var(--gold-bright);
-    box-shadow:0 0 8px var(--gold-bright);
-    animation:pulse 2.4s ease-in-out infinite;
+    width:7px;height:7px;border-radius:50%; background:var(--gold-bright);
+    box-shadow:0 0 8px var(--gold-bright); animation:pulse 2.4s ease-in-out infinite;
   }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
 
-  /* ヘッダー内の要約ボタン(スマホ用) */
-  #summary-btn-mobile{
-    margin-left:auto;
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--gold-bright);
-    background:transparent;
-    border:1px solid var(--border);
-    padding:8px 14px;
-    cursor:pointer;
+  .header-btn{
+    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted);
+    background:transparent; border:1px solid var(--border); padding:8px 14px; cursor:pointer;
   }
-  #summary-btn-mobile:hover{ background:rgba(184,147,74,0.1); border-color:var(--gold); }
+  .header-btn:hover{ color:var(--gold-bright); border-color:var(--gold); }
+  .header-btn.active{ color:var(--gold-bright); border-color:var(--gold); }
+  #lock-btn{ margin-left:auto; }
 
-  /* 鍵板ボタン(ヘッダー常設) */
-  #lock-btn{
-    margin-left:auto;
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--muted);
-    background:transparent;
-    border:1px solid var(--border);
-    padding:8px 14px;
-    cursor:pointer;
-  }
-  #lock-btn:hover{ color:var(--gold-bright); border-color:var(--gold); }
-  #lock-btn.active{ color:var(--gold-bright); border-color:var(--gold); }
-
-  /* 接触コード入力モーダル */
-  #lock-modal{
+  /* ===== モーダル共通(鍵板・管理者ログイン) ===== */
+  .overlay{
     position:fixed; inset:0; z-index:20;
     background:rgba(0,0,0,0.65);
     display:flex; align-items:center; justify-content:center;
+    opacity:0; visibility:hidden; pointer-events:none;
+    transition:opacity .2s ease;
   }
-  #lock-modal.hidden{ display:none; }
+  .overlay.show{ opacity:1; visibility:visible; pointer-events:auto; }
   .modal-box{
     background:var(--panel-solid); border:1px solid var(--gold);
     padding:26px 24px; width:min(90vw, 320px);
+    transform:translateY(10px) scale(.97);
+    transition:transform .2s ease;
   }
+  .overlay.show .modal-box{ transform:translateY(0) scale(1); }
   .modal-box p{
     margin:0 0 14px; font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--gold-bright);
     letter-spacing:.04em;
   }
-  #lock-code-input{
+  .modal-box input[type="password"]{
     width:100%; background:var(--bg); border:1px solid var(--border); color:var(--white);
-    font-family:'JetBrains Mono', monospace; font-size:14px; padding:10px; outline:none; box-sizing:border-box;
+    font-family:'JetBrains Mono', monospace; font-size:14px; padding:10px; outline:none;
   }
-  #lock-code-input:focus{ border-color:var(--gold); }
+  .modal-box input:focus{ border-color:var(--gold); }
   .modal-actions{ display:flex; gap:8px; margin-top:14px; justify-content:flex-end; }
   .modal-actions button{
     font-family:'Zen Kaku Gothic New', sans-serif; font-size:13px; padding:8px 14px;
     border:1px solid var(--border); background:transparent; color:var(--white); cursor:pointer;
   }
-  #lock-submit{ border-color:var(--gold); color:var(--gold-bright); }
-  #lock-submit:hover{ background:rgba(184,147,74,0.12); }
-  #lock-cancel:hover{ border-color:var(--gold-bright); color:var(--gold-bright); }
+  .modal-actions .primary{ border-color:var(--gold); color:var(--gold-bright); }
+  .modal-actions .primary:hover{ background:rgba(184,147,74,0.12); }
+  .modal-actions button:hover{ border-color:var(--gold-bright); color:var(--gold-bright); }
+
+  /* ===== 管理者パネル(大きめオーバーレイ) ===== */
+  #admin-panel .modal-box{
+    width:min(92vw, 680px); max-height:80vh;
+    display:flex; flex-direction:column;
+  }
+  #admin-panel-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  #admin-panel-header p{ margin:0; }
+  #admin-close{
+    background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; font-family:'JetBrains Mono',monospace;
+  }
+  #admin-close:hover{ color:var(--gold-bright); }
+  #admin-list{ overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:4px; }
+  .admin-row{
+    display:flex; align-items:flex-start; gap:10px;
+    border:1px solid var(--border); padding:10px 12px; animation:fadeInUp .25s ease both;
+  }
+  .admin-row .badge{
+    font-family:'JetBrains Mono', monospace; font-size:10px; padding:2px 6px; border:1px solid var(--border);
+    color:var(--muted); white-space:nowrap;
+  }
+  .admin-row.locked .badge{ color:var(--gold-bright); border-color:var(--gold); }
+  .admin-row .body{ flex:1; min-width:0; }
+  .admin-row .time{ font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); }
+  .admin-row .text{ font-size:13.5px; margin-top:2px; word-break:break-word; white-space:pre-wrap; }
+  .admin-row .del-btn{
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--danger);
+    background:transparent; border:1px solid var(--danger); padding:5px 10px; cursor:pointer; white-space:nowrap;
+  }
+  .admin-row .del-btn:hover{ background:rgba(184,90,74,0.15); }
+  .admin-empty{ font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); padding:16px 0; text-align:center; }
 
   /* ===== レイアウト本体 ===== */
   #layout{ flex:1; display:flex; width:100%; min-height:0; }
 
-  /* ---- 掲示板(共通) ---- */
-  #board-col{
-    flex:1;
-    min-width:0;
-    display:flex;
-    flex-direction:column;
-  }
-  #board-scroll{
-    flex:1;
-    overflow-y:auto;
-    padding:24px clamp(16px,3vw,32px) 16px;
-  }
+  #board-col{ flex:1; min-width:0; display:flex; flex-direction:column; min-height:0; }
+  #board-scroll{ flex:1; overflow-y:auto; min-height:0; padding:24px clamp(16px,3vw,32px) 16px; }
   .posts-heading{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--muted);
-    letter-spacing:0.08em;
-    margin:0 0 14px;
+    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted);
+    letter-spacing:0.08em; margin:0 0 14px;
   }
   #posts{ display:flex; flex-direction:column; max-width:720px; }
-  .post{ padding:16px 4px; border-top:1px solid var(--border); transition:padding-left .15s, border-color .15s; }
+  .post{
+    padding:16px 4px; border-top:1px solid var(--border);
+    transition:padding-left .15s, border-color .15s;
+    animation:fadeInUp .3s ease both;
+  }
   .post:hover{ padding-left:12px; border-color:var(--gold); }
   .post:last-child{ border-bottom:1px solid var(--border); }
   .post-time{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); }
@@ -169,15 +178,32 @@
     margin-top:6px; font-family:'Shippori Mincho', serif; font-size:16px; line-height:1.85;
     color:var(--white); word-break:break-word; white-space:pre-wrap;
   }
-  .empty{ font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--muted); padding:24px 4px; }
+  .empty{ font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--muted); padding:24px 4px; animation:fadeIn .3s ease both; }
 
-  /* 掲示板側の投稿バー(PCではここが唯一の投稿手段) */
   #board-composer{
-    border-top:1px solid var(--border);
-    background:var(--panel);
-    padding:12px clamp(16px,3vw,32px);
-    display:flex;
-    gap:10px;
+    border-top:1px solid var(--border); background:var(--panel);
+    padding:12px clamp(16px,3vw,32px); display:flex; flex-direction:column; gap:8px; flex-shrink:0;
+  }
+  .composer-row{ display:flex; gap:10px; }
+  .icon-btn{
+    width:44px; height:44px; flex-shrink:0;
+    border:1px solid var(--border); background:transparent; color:var(--muted);
+    font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:hover{ border-color:var(--gold-bright); color:var(--gold-bright); }
+  .img-preview{ display:none; align-items:center; gap:10px; }
+  .img-preview.show{ display:flex; animation:fadeIn .2s ease both; }
+  .img-preview img{
+    max-width:56px; max-height:56px; border:1px solid var(--gold); display:block;
+  }
+  .img-preview .remove-img{
+    background:none; border:1px solid var(--border); color:var(--muted);
+    font-size:12px; padding:4px 9px; cursor:pointer; font-family:'JetBrains Mono', monospace;
+  }
+  .img-preview .remove-img:hover{ color:var(--danger); border-color:var(--danger); }
+  .post-image, .admin-thumb{
+    display:block; max-width:128px; max-height:128px;
+    border:1px solid var(--border); margin-top:8px;
   }
   #board-input{
     flex:1; resize:none; height:44px; max-height:110px;
@@ -194,51 +220,40 @@
 
   /* ---- PC専用: 右側AIアシスタント常駐カラム ---- */
   #ai-col{
-    width:34%;
-    max-width:420px;
-    min-width:280px;
-    border-left:1px solid var(--border);
-    background:var(--panel);
-    display:flex;
-    flex-direction:column;
-    min-height:0;
+    width:34%; max-width:420px; min-width:280px;
+    border-left:1px solid var(--border); background:var(--panel);
+    display:flex; flex-direction:column; min-height:0;
   }
-  #summary-btn-wrap{ padding:18px 16px 10px; text-align:center; }
-  #summary-btn-desktop{
-    font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--gold-bright);
-    background:transparent; border:1px solid var(--gold); padding:10px 18px; cursor:pointer;
-    letter-spacing:.03em;
-  }
-  #summary-btn-desktop:hover{ background:rgba(184,147,74,0.12); }
-  #summary-btn-desktop.hidden{ display:none; }
-
   .ai-name{
     text-align:center; font-family:'JetBrains Mono', monospace; font-size:11px;
-    color:var(--muted); letter-spacing:.1em; padding:0 16px 10px; border-bottom:1px solid var(--border);
+    color:var(--muted); letter-spacing:.1em; padding:16px 16px 10px; border-bottom:1px solid var(--border);
+    flex-shrink:0;
   }
-
-  #chat-log{ flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
-  .msg{ max-width:100%; }
-  .msg .who{
-    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.06em; margin-bottom:4px;
-  }
+  #chat-log{ flex:1; overflow-y:auto; min-height:0; padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
+  .msg{ max-width:100%; animation:fadeInUp .25s ease both; }
+  .msg .who{ font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.06em; margin-bottom:4px; }
   .msg.user .who{ color:var(--muted); text-align:right; }
   .msg.ai .who{ color:var(--gold-bright); }
   .msg.user .bubble{
     background:var(--panel-solid); border:1px solid var(--border); padding:10px 12px;
     font-size:13.5px; color:var(--white); margin-left:auto; max-width:90%; white-space:pre-wrap;
   }
-  .msg.ai .bubble{
-    border-left:2px solid var(--gold); padding:4px 0 4px 12px; font-size:13.5px; line-height:1.75; color:var(--white);
-  }
-  .msg.ai .bubble.loading{ color:var(--muted); font-family:'JetBrains Mono', monospace; }
+  .msg.ai .bubble{ border-left:2px solid var(--gold); padding:4px 0 4px 12px; font-size:13.5px; line-height:1.75; color:var(--white); }
   .msg.ai .bubble p{ margin:0 0 8px; }
   .msg.ai .bubble p:last-child{ margin-bottom:0; }
   .msg.ai .bubble code{ font-family:'JetBrains Mono', monospace; background:rgba(184,147,74,0.12); padding:1px 4px; }
   .msg.ai .bubble pre{ background:rgba(0,0,0,0.35); padding:10px; overflow-x:auto; }
   .msg.ai .bubble ul, .msg.ai .bubble ol{ padding-left:1.2em; }
 
-  #chat-input-wrap{ border-top:1px solid var(--border); padding:12px 14px; display:flex; gap:8px; }
+  .typing{ display:inline-flex; gap:4px; padding:4px 0; }
+  .typing span{
+    width:5px; height:5px; border-radius:50%; background:var(--gold-bright);
+    animation:blink 1.1s infinite;
+  }
+  .typing span:nth-child(2){ animation-delay:.15s; }
+  .typing span:nth-child(3){ animation-delay:.3s; }
+
+  #chat-input-wrap{ border-top:1px solid var(--border); padding:12px 14px; display:flex; gap:8px; flex-shrink:0; }
   #chat-input{
     flex:1; resize:none; height:42px; max-height:100px;
     background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
@@ -255,28 +270,22 @@
   /* ---- スマホ専用: 下部固定バー ---- */
   #mobile-bar{ display:none; }
 
-  /* ===== ブレークポイント切り替え ===== */
   @media (max-width: 899px){
     #ai-col{ display:none; }
-    #board-composer{ display:none; } /* スマホでは下部バーに統合 */
-    #board-scroll{ padding-bottom:150px; }
+    #board-composer{ display:none; }
+    #board-scroll{ padding-bottom:16px; }
 
     #mobile-bar{
-      display:block;
-      position:fixed; left:0; right:0; bottom:0; z-index:5;
-      background:rgba(13,12,10,0.95);
-      border-top:1px solid var(--border);
-      backdrop-filter:blur(4px);
+      display:block; position:fixed; left:0; right:0; bottom:0; z-index:5;
+      background:rgba(13,12,10,0.95); border-top:1px solid var(--border); backdrop-filter:blur(4px);
+      flex-shrink:0;
     }
     #mobile-ai-panel{
-      display:none;
-      max-height:45vh;
-      overflow-y:auto;
-      padding:14px 16px;
-      border-bottom:1px solid var(--border);
+      display:none; max-height:45vh; overflow-y:auto; padding:14px 16px; border-bottom:1px solid var(--border);
     }
     #mobile-ai-panel.show{ display:flex; flex-direction:column; gap:14px; }
-    #mobile-composer{ display:flex; gap:8px; align-items:flex-end; padding:12px clamp(16px,4vw,32px); }
+    #mobile-composer{ display:flex; flex-direction:column; gap:8px; padding:12px clamp(16px,4vw,32px); }
+    #mobile-composer .composer-row{ align-items:flex-end; }
     #mobile-input{
       flex:1; resize:none; height:44px; max-height:110px;
       background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
@@ -292,8 +301,11 @@
     #mobile-ask-btn:hover{ background:rgba(184,147,74,0.12); }
     #mobile-composer button:disabled{ opacity:.45; cursor:default; }
   }
-  @media (min-width: 900px){
-    #summary-btn-mobile{ display:none; }
+
+  /* #layout自体はflexのため、スマホでは下にbodyスクロールが生まれないよう
+     board-colの内部スクロールにまかせる(#appはheight:100%で固定) */
+  @media (max-width: 899px){
+    #layout{ min-height:0; }
   }
 </style>
 </head>
@@ -305,18 +317,39 @@
       <h1>Skynet Like</h1>
       <span class="status-dot"></span>
     </div>
-    <button id="lock-btn">鍵板にアクセス</button>
-    <button id="summary-btn-mobile">最近の要約</button>
+    <button id="lock-btn" class="header-btn">鍵板にアクセス</button>
+    <button id="admin-btn" class="header-btn">管理者</button>
   </header>
 
-  <div id="lock-modal" class="hidden">
+  <div id="lock-modal" class="overlay">
     <div class="modal-box">
       <p>接触コードを入力</p>
       <input type="password" id="lock-code-input" placeholder="接触コード">
       <div class="modal-actions">
         <button id="lock-cancel">キャンセル</button>
-        <button id="lock-submit">アクセス</button>
+        <button id="lock-submit" class="primary">アクセス</button>
       </div>
+    </div>
+  </div>
+
+  <div id="admin-login-modal" class="overlay">
+    <div class="modal-box">
+      <p>管理者パスワードを入力</p>
+      <input type="password" id="admin-password-input" placeholder="パスワード">
+      <div class="modal-actions">
+        <button id="admin-login-cancel">キャンセル</button>
+        <button id="admin-login-submit" class="primary">ログイン</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="admin-panel" class="overlay">
+    <div class="modal-box">
+      <div id="admin-panel-header">
+        <p>管理者専用画面 — 全投稿</p>
+        <button id="admin-close">閉じる ×</button>
+      </div>
+      <div id="admin-list"><p class="admin-empty">読み込み中...</p></div>
     </div>
   </div>
 
@@ -327,15 +360,22 @@
         <div id="posts"><p class="empty">読み込み中...</p></div>
       </div>
       <div id="board-composer">
-        <textarea id="board-input" placeholder="投稿する..." maxlength="500"></textarea>
-        <button id="board-post-btn">投稿する</button>
+        <div class="img-preview" id="board-preview">
+          <img id="board-preview-img" alt="preview">
+          <button type="button" class="remove-img" id="board-preview-remove">画像を外す</button>
+        </div>
+        <div class="composer-row">
+          <button type="button" class="icon-btn" id="board-file-btn" title="画像を選択">📁</button>
+          <button type="button" class="icon-btn" id="board-camera-btn" title="カメラを起動">📷</button>
+          <input type="file" id="board-file-input" accept="image/*" hidden>
+          <input type="file" id="board-camera-input" accept="image/*" capture="environment" hidden>
+          <textarea id="board-input" placeholder="投稿する..." maxlength="500"></textarea>
+          <button id="board-post-btn">投稿する</button>
+        </div>
       </div>
     </div>
 
     <aside id="ai-col">
-      <div id="summary-btn-wrap">
-        <button id="summary-btn-desktop">最近の要約</button>
-      </div>
       <div class="ai-name">AI ASSISTANT — Sky</div>
       <div id="chat-log"></div>
       <div id="chat-input-wrap">
@@ -348,9 +388,19 @@
   <div id="mobile-bar">
     <div id="mobile-ai-panel"></div>
     <div id="mobile-composer">
-      <textarea id="mobile-input" placeholder="投稿する、またはSkyに質問する..." maxlength="500"></textarea>
-      <button id="mobile-post-btn">投稿</button>
-      <button id="mobile-ask-btn">Skyに質問</button>
+      <div class="img-preview" id="mobile-preview">
+        <img id="mobile-preview-img" alt="preview">
+        <button type="button" class="remove-img" id="mobile-preview-remove">画像を外す</button>
+      </div>
+      <div class="composer-row">
+        <button type="button" class="icon-btn" id="mobile-file-btn" title="画像を選択">📁</button>
+        <button type="button" class="icon-btn" id="mobile-camera-btn" title="カメラを起動">📷</button>
+        <input type="file" id="mobile-file-input" accept="image/*" hidden>
+        <input type="file" id="mobile-camera-input" accept="image/*" capture="environment" hidden>
+        <textarea id="mobile-input" placeholder="投稿する、またはSkyに質問する..." maxlength="500"></textarea>
+        <button id="mobile-post-btn">投稿</button>
+        <button id="mobile-ask-btn">Skyに質問</button>
+      </div>
     </div>
   </div>
 </div>
@@ -362,31 +412,122 @@ const WORKER_URL = WORKER_URL_RAW.replace(/\/+$/, '');
 /* ▲▲▲ ここまで ▲▲▲ ---------------------------------------------- */
 
 const postsEl = document.getElementById('posts');
+const postsHeading = document.getElementById('posts-heading');
 
 const boardInput = document.getElementById('board-input');
 const boardPostBtn = document.getElementById('board-post-btn');
+const boardFileBtn = document.getElementById('board-file-btn');
+const boardCameraBtn = document.getElementById('board-camera-btn');
+const boardFileInput = document.getElementById('board-file-input');
+const boardCameraInput = document.getElementById('board-camera-input');
+const boardPreview = document.getElementById('board-preview');
+const boardPreviewImg = document.getElementById('board-preview-img');
+const boardPreviewRemove = document.getElementById('board-preview-remove');
 
 const mobileInput = document.getElementById('mobile-input');
 const mobilePostBtn = document.getElementById('mobile-post-btn');
 const mobileAskBtn = document.getElementById('mobile-ask-btn');
 const mobileAiPanel = document.getElementById('mobile-ai-panel');
+const mobileFileBtn = document.getElementById('mobile-file-btn');
+const mobileCameraBtn = document.getElementById('mobile-camera-btn');
+const mobileFileInput = document.getElementById('mobile-file-input');
+const mobileCameraInput = document.getElementById('mobile-camera-input');
+const mobilePreview = document.getElementById('mobile-preview');
+const mobilePreviewImg = document.getElementById('mobile-preview-img');
+const mobilePreviewRemove = document.getElementById('mobile-preview-remove');
 
-const summaryBtnDesktop = document.getElementById('summary-btn-desktop');
-const summaryBtnMobile = document.getElementById('summary-btn-mobile');
 const chatLog = document.getElementById('chat-log');
 const chatInput = document.getElementById('chat-input');
 const chatSend = document.getElementById('chat-send');
 
-const postsHeading = document.getElementById('posts-heading');
 const lockBtn = document.getElementById('lock-btn');
 const lockModal = document.getElementById('lock-modal');
 const lockCodeInput = document.getElementById('lock-code-input');
 const lockSubmit = document.getElementById('lock-submit');
 const lockCancel = document.getElementById('lock-cancel');
 
-let conversationStarted = false;
+const adminBtn = document.getElementById('admin-btn');
+const adminLoginModal = document.getElementById('admin-login-modal');
+const adminPasswordInput = document.getElementById('admin-password-input');
+const adminLoginSubmit = document.getElementById('admin-login-submit');
+const adminLoginCancel = document.getElementById('admin-login-cancel');
+const adminPanel = document.getElementById('admin-panel');
+const adminList = document.getElementById('admin-list');
+const adminClose = document.getElementById('admin-close');
+
 let currentBoard = 'normal'; // 'normal' または 'locked'
 let accessCode = '';         // 鍵板アクセス時の接触コード(メモリ上にのみ保持)
+let adminPassword = '';      // 管理者パスワード(メモリ上にのみ保持。リロードで消える)
+
+let boardPendingImage = null;  // 投稿待ちの画像(Base64 data URI)
+let mobilePendingImage = null;
+
+// 画像を「長辺128pxを超えない」ようにリサイズし、JPEGで圧縮してdata URIを返す。
+// 正方形には強制しない(アスペクト比は維持)。128px以下の画像は拡大しない。
+const MAX_IMAGE_DIM = 128;
+function resizeImageFile(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > MAX_IMAGE_DIM || height > MAX_IMAGE_DIM){
+          const scale = MAX_IMAGE_DIM / Math.max(width, height);
+          width = Math.max(1, Math.round(width * scale));
+          height = Math.max(1, Math.round(height * scale));
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function wireImagePicker({fileBtn, cameraBtn, fileInput, cameraInput, preview, previewImg, previewRemove, setImage}){
+  const handleFile = async (input) => {
+    const file = input.files && input.files[0];
+    input.value = ''; // 同じファイルを連続で選べるようにリセット
+    if(!file) return;
+    try{
+      const dataUrl = await resizeImageFile(file);
+      setImage(dataUrl);
+      previewImg.src = dataUrl;
+      preview.classList.add('show');
+    }catch(e){
+      alert('画像の処理に失敗しました');
+    }
+  };
+  fileBtn.onclick = () => fileInput.click();
+  cameraBtn.onclick = () => cameraInput.click();
+  fileInput.onchange = () => handleFile(fileInput);
+  cameraInput.onchange = () => handleFile(cameraInput);
+  previewRemove.onclick = () => {
+    setImage(null);
+    preview.classList.remove('show');
+    previewImg.src = '';
+  };
+}
+
+wireImagePicker({
+  fileBtn: boardFileBtn, cameraBtn: boardCameraBtn,
+  fileInput: boardFileInput, cameraInput: boardCameraInput,
+  preview: boardPreview, previewImg: boardPreviewImg, previewRemove: boardPreviewRemove,
+  setImage: (v) => { boardPendingImage = v; }
+});
+wireImagePicker({
+  fileBtn: mobileFileBtn, cameraBtn: mobileCameraBtn,
+  fileInput: mobileFileInput, cameraInput: mobileCameraInput,
+  preview: mobilePreview, previewImg: mobilePreviewImg, previewRemove: mobilePreviewRemove,
+  setImage: (v) => { mobilePendingImage = v; }
+});
 
 // ---- Markdown描画(AIの回答のみに適用) ----
 function renderMarkdown(text){
@@ -399,13 +540,17 @@ function renderMarkdown(text){
     return div.innerHTML;
   }
 }
-
-// ---- 投稿一覧 ----
+function escapeText(text){
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
 function fmtTime(iso){
   const m = iso.match(/(\d{2}):(\d{2})/);
   return m ? `${m[1]}:${m[2]}` : iso;
 }
 
+// ---- 投稿一覧 ----
 function renderPostsList(posts){
   if(!posts || !posts.length){
     postsEl.innerHTML = `<p class="empty">${currentBoard === 'locked' ? 'この鍵板にはまだ投稿がありません。' : 'まだ投稿がありません。最初の投稿をしてみましょう。'}</p>`;
@@ -415,6 +560,7 @@ function renderPostsList(posts){
     <div class="post">
       <div class="post-time">${fmtTime(p.created_at)}</div>
       <div class="post-content"></div>
+      ${p.image ? `<img class="post-image" src="${p.image}" alt="投稿画像">` : ''}
     </div>
   `).join('');
   const bodies = postsEl.querySelectorAll('.post-content');
@@ -439,15 +585,14 @@ async function loadPosts(){
   }
 }
 
-async function submitPost(text, {clearInputs} = {}){
-  if(!text) return;
+async function submitPost(text, image, {clearInputs} = {}){
+  if(!text && !image) return;
   try{
     const headers = {'Content-Type':'application/json'};
     if(currentBoard === 'locked') headers['X-Access-Code'] = accessCode;
     const res = await fetch(`${WORKER_URL}/api/posts`, {
-      method:'POST',
-      headers,
-      body: JSON.stringify({content:text, board: currentBoard})
+      method:'POST', headers,
+      body: JSON.stringify({content:text, board: currentBoard, image})
     });
     const data = await res.json();
     if(data.error) throw new Error(data.error);
@@ -460,8 +605,15 @@ async function submitPost(text, {clearInputs} = {}){
 
 boardPostBtn.onclick = () => {
   const text = boardInput.value.trim();
+  const image = boardPendingImage;
+  if(!text && !image) return;
   boardPostBtn.disabled = true;
-  submitPost(text, {clearInputs: () => { boardInput.value=''; }}).finally(() => boardPostBtn.disabled=false);
+  submitPost(text, image, {clearInputs: () => {
+    boardInput.value = '';
+    boardPendingImage = null;
+    boardPreview.classList.remove('show');
+    boardPreviewImg.src = '';
+  }}).finally(() => boardPostBtn.disabled=false);
 };
 boardInput.addEventListener('keydown', e => {
   if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); boardPostBtn.click(); }
@@ -469,8 +621,15 @@ boardInput.addEventListener('keydown', e => {
 
 mobilePostBtn.onclick = () => {
   const text = mobileInput.value.trim();
+  const image = mobilePendingImage;
+  if(!text && !image) return;
   mobilePostBtn.disabled = true;
-  submitPost(text, {clearInputs: () => { mobileInput.value=''; }}).finally(() => mobilePostBtn.disabled=false);
+  submitPost(text, image, {clearInputs: () => {
+    mobileInput.value = '';
+    mobilePendingImage = null;
+    mobilePreview.classList.remove('show');
+    mobilePreviewImg.src = '';
+  }}).finally(() => mobilePostBtn.disabled=false);
 };
 
 // ---- 鍵板(パスワード制の別掲示板) ----
@@ -485,30 +644,18 @@ function updateBoardUI(){
     lockBtn.classList.remove('active');
   }
 }
-
 function exitLockedBoard(){
-  currentBoard = 'normal';
-  accessCode = '';
-  updateBoardUI();
-  loadPosts();
+  currentBoard = 'normal'; accessCode = '';
+  updateBoardUI(); loadPosts();
 }
-
 function openLockModal(){
   lockCodeInput.value = '';
-  lockModal.classList.remove('hidden');
-  lockCodeInput.focus();
+  lockModal.classList.add('show');
+  setTimeout(() => lockCodeInput.focus(), 50);
 }
-function closeLockModal(){
-  lockModal.classList.add('hidden');
-}
+function closeLockModal(){ lockModal.classList.remove('show'); }
 
-lockBtn.onclick = () => {
-  if(currentBoard === 'locked'){
-    exitLockedBoard();
-  }else{
-    openLockModal();
-  }
-};
+lockBtn.onclick = () => { currentBoard === 'locked' ? exitLockedBoard() : openLockModal(); };
 lockCancel.onclick = closeLockModal;
 
 async function trySubmitLockCode(){
@@ -516,19 +663,11 @@ async function trySubmitLockCode(){
   if(!code) return;
   lockSubmit.disabled = true;
   try{
-    const res = await fetch(`${WORKER_URL}/api/posts?board=locked`, {
-      headers: {'X-Access-Code': code}
-    });
-    if(res.status === 403){
-      alert('接触コードが違います');
-      return;
-    }
+    const res = await fetch(`${WORKER_URL}/api/posts?board=locked`, { headers: {'X-Access-Code': code} });
+    if(res.status === 403){ alert('接触コードが違います'); return; }
     const data = await res.json();
-    accessCode = code;
-    currentBoard = 'locked';
-    updateBoardUI();
-    closeLockModal();
-    renderPostsList(data.posts);
+    accessCode = code; currentBoard = 'locked';
+    updateBoardUI(); closeLockModal(); renderPostsList(data.posts);
   }catch(e){
     alert('接続に失敗しました。WORKER_URLの設定を確認してください。');
   }finally{
@@ -536,25 +675,108 @@ async function trySubmitLockCode(){
   }
 }
 lockSubmit.onclick = trySubmitLockCode;
-lockCodeInput.addEventListener('keydown', e => {
-  if(e.key === 'Enter'){ e.preventDefault(); trySubmitLockCode(); }
-});
+lockCodeInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); trySubmitLockCode(); } });
+
+// ---- 管理者専用画面 ----
+function openAdminLogin(){
+  adminPasswordInput.value = '';
+  adminLoginModal.classList.add('show');
+  setTimeout(() => adminPasswordInput.focus(), 50);
+}
+function closeAdminLogin(){ adminLoginModal.classList.remove('show'); }
+function openAdminPanel(){ adminPanel.classList.add('show'); loadAdminPosts(); }
+function closeAdminPanel(){ adminPanel.classList.remove('show'); }
+
+adminBtn.onclick = () => { adminPassword ? openAdminPanel() : openAdminLogin(); };
+adminLoginCancel.onclick = closeAdminLogin;
+adminClose.onclick = closeAdminPanel;
+
+async function trySubmitAdminLogin(){
+  const pw = adminPasswordInput.value.trim();
+  if(!pw) return;
+  adminLoginSubmit.disabled = true;
+  try{
+    const res = await fetch(`${WORKER_URL}/api/admin/posts`, { headers: {'X-Admin-Password': pw} });
+    if(res.status === 403){ alert('パスワードが違います'); return; }
+    adminPassword = pw;
+    closeAdminLogin();
+    openAdminPanel();
+  }catch(e){
+    alert('接続に失敗しました。WORKER_URLの設定を確認してください。');
+  }finally{
+    adminLoginSubmit.disabled = false;
+  }
+}
+adminLoginSubmit.onclick = trySubmitAdminLogin;
+adminPasswordInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); trySubmitAdminLogin(); } });
+
+async function loadAdminPosts(){
+  adminList.innerHTML = '<p class="admin-empty">読み込み中...</p>';
+  try{
+    const res = await fetch(`${WORKER_URL}/api/admin/posts`, { headers: {'X-Admin-Password': adminPassword} });
+    if(res.status === 403){
+      alert('管理者パスワードが無効になりました。再度ログインしてください。');
+      adminPassword = ''; closeAdminPanel(); return;
+    }
+    const data = await res.json();
+    renderAdminList(data.posts);
+  }catch(e){
+    adminList.innerHTML = '<p class="admin-empty">読み込みに失敗しました。</p>';
+  }
+}
+
+function renderAdminList(posts){
+  if(!posts || !posts.length){
+    adminList.innerHTML = '<p class="admin-empty">投稿はまだありません。</p>';
+    return;
+  }
+  adminList.innerHTML = posts.map(p => `
+    <div class="admin-row ${p.board === 'locked' ? 'locked' : ''}" data-id="${p.id}">
+      <span class="badge">${p.board === 'locked' ? '鍵板' : '通常'}</span>
+      <div class="body">
+        <div class="time">#${p.id} ・ ${p.created_at}</div>
+        <div class="text"></div>
+        ${p.image ? `<img class="admin-thumb" src="${p.image}" alt="投稿画像">` : ''}
+      </div>
+      <button class="del-btn">削除</button>
+    </div>
+  `).join('');
+
+  adminList.querySelectorAll('.admin-row').forEach((row, i) => {
+    row.querySelector('.text').textContent = posts[i].content;
+    row.querySelector('.del-btn').onclick = () => deleteAdminPost(posts[i].id, row);
+  });
+}
+
+async function deleteAdminPost(id, rowEl){
+  if(!confirm('この投稿を削除しますか?元に戻せません。')) return;
+  try{
+    const res = await fetch(`${WORKER_URL}/api/admin/delete`, {
+      method:'POST',
+      headers: {'Content-Type':'application/json', 'X-Admin-Password': adminPassword},
+      body: JSON.stringify({id})
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    rowEl.remove();
+    loadPosts(); // 表示中の掲示板にも反映
+  }catch(e){
+    alert('削除に失敗しました。');
+  }
+}
 
 // ---- AIチャット(PC: 右カラム / スマホ: 下部パネル、両方に同じ内容を描画) ----
 function appendMessage(role, content, {loading=false} = {}){
-  conversationStarted = true;
-  summaryBtnDesktop.classList.add('hidden');
-
   const who = role === 'user' ? 'YOU' : 'SKY';
-  const bubbleHtml = role === 'ai'
-    ? renderMarkdown(content)
-    : `<div class="bubble">${escapeText(content)}</div>`;
+  const bubbleInner = loading
+    ? '<span class="typing"><span></span><span></span><span></span></span>'
+    : (role === 'ai' ? renderMarkdown(content) : escapeText(content));
 
   const wrapDesktop = document.createElement('div');
   wrapDesktop.className = `msg ${role}`;
   wrapDesktop.innerHTML = role === 'ai'
-    ? `<div class="who">${who}</div><div class="bubble${loading ? ' loading' : ''}">${bubbleHtml}</div>`
-    : `<div class="who">${who}</div>${bubbleHtml}`;
+    ? `<div class="who">${who}</div><div class="bubble">${bubbleInner}</div>`
+    : `<div class="who">${who}</div><div class="bubble">${bubbleInner}</div>`;
   chatLog.appendChild(wrapDesktop);
   chatLog.scrollTop = chatLog.scrollHeight;
 
@@ -569,29 +791,19 @@ function appendMessage(role, content, {loading=false} = {}){
 function updateMessage(nodes, role, content){
   const bubbleHtml = role === 'ai' ? renderMarkdown(content) : escapeText(content);
   [nodes.desktop, nodes.mobile].forEach(node => {
-    const bubble = node.querySelector('.bubble');
-    bubble.classList.remove('loading');
-    bubble.innerHTML = bubbleHtml;
+    node.querySelector('.bubble').innerHTML = bubbleHtml;
   });
 }
 
-function escapeText(text){
-  const div = document.createElement('div');
-  div.textContent = text || '';
-  return div.innerHTML;
-}
-
-async function askAI(mode, question){
-  if(mode === 'ask'){
-    appendMessage('user', question);
-  }
-  const nodes = appendMessage('ai', mode === 'summary' ? '要約を生成中...' : '考え中...', {loading:true});
+async function askAI(question){
+  appendMessage('user', question);
+  const nodes = appendMessage('ai', '', {loading:true});
 
   try{
     const res = await fetch(`${WORKER_URL}/api/ai`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(mode === 'summary' ? {mode} : {mode, question})
+      body: JSON.stringify({mode:'ask', question})
     });
     const data = await res.json();
     if(data.error) throw new Error(data.error);
@@ -601,20 +813,11 @@ async function askAI(mode, question){
   }
 }
 
-function triggerSummary(){
-  askAI('summary');
-}
-summaryBtnDesktop.onclick = triggerSummary;
-summaryBtnMobile.onclick = () => {
-  mobileAiPanel.classList.add('show');
-  triggerSummary();
-};
-
 chatSend.onclick = () => {
   const q = chatInput.value.trim();
   if(!q) return;
   chatInput.value = '';
-  askAI('ask', q);
+  askAI(q);
 };
 chatInput.addEventListener('keydown', e => {
   if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); chatSend.click(); }
@@ -624,7 +827,7 @@ mobileAskBtn.onclick = () => {
   const q = mobileInput.value.trim();
   if(!q) return;
   mobileInput.value = '';
-  askAI('ask', q);
+  askAI(q);
 };
 
 loadPosts();
