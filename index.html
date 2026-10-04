@@ -201,35 +201,18 @@
     font-size:12px; padding:4px 9px; cursor:pointer; font-family:'JetBrains Mono', monospace;
   }
   .img-preview .remove-img:hover{ color:var(--danger); border-color:var(--danger); }
+  /* 投稿画像: 元画像は128pxのまま、表示は最大320×320px以内に拡大 */
   .post-image{
-    display:block; width:256px; height:auto; max-width:none;
-    image-rendering:pixelated;
+    display:block; width:320px; height:320px; max-width:320px; max-height:320px;
+    object-fit:contain; image-rendering:pixelated;
     background:rgba(0,0,0,0.25);
     border:1px solid var(--border); margin-top:8px;
-    cursor:zoom-in; transition:border-color .15s ease, transform .15s ease;
   }
-  .post-image:hover{ border-color:var(--gold); transform:scale(1.01); }
   .admin-thumb{
     display:block; max-width:128px; max-height:128px;
     border:1px solid var(--border); margin-top:8px;
   }
 
-  /* 画像のほぼ全画面表示(ライトボックス) */
-  #image-lightbox{ z-index:30; background:rgba(0,0,0,0.88); }
-  #image-lightbox img{
-    max-width:92vw; max-height:92vh; width:auto; height:auto; object-fit:contain;
-    image-rendering:pixelated;
-    border:1px solid var(--border);
-    transform:scale(.97); transition:transform .2s ease;
-  }
-  #image-lightbox.show img{ transform:scale(1); }
-  #lightbox-close{
-    position:fixed; top:18px; right:18px; z-index:31;
-    width:42px; height:42px; display:flex; align-items:center; justify-content:center;
-    background:rgba(13,12,10,0.85); border:1px solid var(--gold); color:var(--gold-bright);
-    font-size:18px; cursor:pointer;
-  }
-  #lightbox-close:hover{ background:rgba(184,147,74,0.2); }
   #board-input{
     flex:1; resize:none; height:44px; max-height:110px;
     background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
@@ -298,7 +281,7 @@
   @media (max-width: 899px){
     #ai-col{ display:none; }
     #board-composer{ display:none; }
-    #board-scroll{ padding-bottom:16px; }
+    #board-scroll{ padding-bottom:140px; }
 
     #mobile-bar{
       display:block; position:fixed; left:0; right:0; bottom:0; z-index:5;
@@ -310,9 +293,13 @@
     }
     #mobile-ai-panel.show{ display:flex; flex-direction:column; gap:14px; }
     #mobile-composer{ display:flex; flex-direction:column; gap:8px; padding:12px clamp(16px,4vw,32px); }
-    #mobile-composer .composer-row{ align-items:flex-end; }
+    #mobile-composer .mobile-actions-row{ display:flex; gap:10px; width:100%; }
+    #mobile-composer .mobile-actions-row .icon-btn{ flex:0 0 44px; }
+    #mobile-composer .mobile-actions-row #mobile-post-btn,
+    #mobile-composer .mobile-actions-row #mobile-ask-btn{ flex:1; min-width:0; padding-left:8px; padding-right:8px; }
+    #mobile-composer .mobile-input-row{ display:flex; width:100%; }
     #mobile-input{
-      flex:1; resize:none; height:44px; max-height:110px;
+      width:100%; box-sizing:border-box; resize:none; height:44px; max-height:110px;
       background:var(--panel-solid); border:1px solid var(--border); color:var(--white);
       font-family:'Zen Kaku Gothic New', sans-serif; font-size:14px; padding:11px 12px; outline:none;
     }
@@ -378,10 +365,6 @@
     </div>
   </div>
 
-  <div id="image-lightbox" class="overlay">
-    <button id="lightbox-close" aria-label="閉じる">✕</button>
-    <img id="lightbox-img" alt="拡大画像">
-  </div>
 
   <div id="layout">
     <div id="board-col">
@@ -422,14 +405,16 @@
         <img id="mobile-preview-img" alt="preview">
         <button type="button" class="remove-img" id="mobile-preview-remove">画像を外す</button>
       </div>
-      <div class="composer-row">
+      <div class="mobile-actions-row">
         <button type="button" class="icon-btn" id="mobile-file-btn" title="画像を選択">📁</button>
         <button type="button" class="icon-btn" id="mobile-camera-btn" title="カメラを起動">📷</button>
         <input type="file" id="mobile-file-input" accept="image/*" hidden>
         <input type="file" id="mobile-camera-input" accept="image/*" capture="environment" hidden>
-        <textarea id="mobile-input" placeholder="投稿する、またはSkyに質問する..." maxlength="500"></textarea>
         <button id="mobile-post-btn">投稿</button>
         <button id="mobile-ask-btn">Skyに質問</button>
+      </div>
+      <div class="mobile-input-row">
+        <textarea id="mobile-input" placeholder="投稿する、またはSkyに質問する..." maxlength="500"></textarea>
       </div>
     </div>
   </div>
@@ -597,31 +582,6 @@ function renderPostsList(posts){
   posts.forEach((p, i) => { bodies[i].textContent = p.content; });
 }
 
-// ---- 画像のほぼ全画面表示(ライトボックス) ----
-const imageLightbox = document.getElementById('image-lightbox');
-const lightboxImg = document.getElementById('lightbox-img');
-const lightboxClose = document.getElementById('lightbox-close');
-
-function openLightbox(src){
-  lightboxImg.src = src;
-  imageLightbox.classList.add('show');
-}
-function closeLightbox(){
-  imageLightbox.classList.remove('show');
-  lightboxImg.src = '';
-}
-lightboxClose.onclick = closeLightbox;
-imageLightbox.addEventListener('click', (e) => {
-  if(e.target === imageLightbox) closeLightbox(); // 画像の外側(背景)をクリックしても閉じる
-});
-document.addEventListener('keydown', (e) => {
-  if(e.key === 'Escape') closeLightbox();
-});
-postsEl.addEventListener('click', (e) => {
-  if(e.target.classList.contains('post-image')){
-    openLightbox(e.target.src);
-  }
-});
 
 async function loadPosts(){
   try{
