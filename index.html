@@ -497,7 +497,7 @@ let mobilePendingImage = null;
 
 // 画像を「長辺256pxを超えない」ようにリサイズし、JPEGで圧縮してdata URIを返す。
 // 正方形には強制しない(アスペクト比は維持)。256px以下の画像は拡大しない。
-const MAX_IMAGE_DIM = 256;
+const MAX_IMAGE_DIM = 512;
 function resizeImageFile(file){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
