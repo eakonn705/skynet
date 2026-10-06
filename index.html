@@ -495,9 +495,9 @@ let adminPassword = '';      // 管理者パスワード(メモリ上にのみ�
 let boardPendingImage = null;  // 投稿待ちの画像(Base64 data URI)
 let mobilePendingImage = null;
 
-// 画像を「長辺128pxを超えない」ようにリサイズし、JPEGで圧縮してdata URIを返す。
-// 正方形には強制しない(アスペクト比は維持)。128px以下の画像は拡大しない。
-const MAX_IMAGE_DIM = 128;
+// 画像を「長辺256pxを超えない」ようにリサイズし、JPEGで圧縮してdata URIを返す。
+// 正方形には強制しない(アスペクト比は維持)。256px以下の画像は拡大しない。
+const MAX_IMAGE_DIM = 256;
 function resizeImageFile(file){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
